@@ -1,5 +1,7 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
+
+
 output: 
   html_document:
     keep_md: true
@@ -7,19 +9,94 @@ output:
 
 
 ## Loading and preprocessing the data
-
+### 1. Processing the zip file and loading data
+```{r  1 , echo=FALSE}
+zipfile <- '/Users/weili/coursera/ReproducibleResearch/RepData_PeerAssessment1/activity.zip'
+if (!file.exists('activity.csv') & file.exists(zipfile)) { 
+        unzip(zipfile)
+      }
+data_act <-  read.csv('activity.csv')
+```
 
 
 ## What is mean total number of steps taken per day?
+### 2. Histogram of the total number of steps taken each day
+```{r  2 , echo=FALSE}
+sumsteps.daily <- aggregate( steps ~ date,data_act, sum)
+hist(sumsteps.daily$steps, main = "histogram of daily step number")
+```
 
+### 3. Mean and median number of steps taken each day 
+```{r  3, echo=FALSE}
+mean.sumsteps.daily <- mean(sumsteps.daily$steps)
+median.sumsteps.daily <- median(sumsteps.daily$steps)
+mean.sumsteps.daily
+median.sumsteps.daily
+```
 
 
 ## What is the average daily activity pattern?
+### 4. Time series plot of the average number of steps taken
+```{r  4, echo=FALSE}
+meansteps.interval <- aggregate(steps ~ interval,data_act, mean)
+with(meansteps.interval,  plot(1:length(interval),steps, type = "l",
+                                     xlab = "time(interval unit)"), ylab = "number of step taken")
+```
 
+### 5. The 5-minute interval that, on average, contains the maximum number of steps
+```{r  5, echo=FALSE}
+max.steps.interval <- max(meansteps.interval$steps)
+idx.interval.contain.max <- which.max(meansteps.interval$steps)
+idx.interval.contain.max
+```
+The maximum number of steps happens at the 104th interval, it can been seen from the previous plot.
 
 
 ## Imputing missing values
+### 6. Code to describe and show a strategy for imputing missing data
+*The principal options for dealing with missing data are.
+i: analysing only the available data (i.e. ignoring the missing data), 
+ii: imputing the missing data with replacement values, and treating these as if they were observed (e.g. last observation carried forward, imputing an assumed outcome such as assuming all were poor outcomes, imputing the mean, imputing based on predicted values from a regression analysis);
+and other two more complicate methods.*
+http://handbook.cochrane.org/chapter_16/16_1_2_general_principles_for_dealing_with_missing_data.htm
 
+This project mostly used the above first method. For the comparing purose, this section, I used the above 2nd method replacing missing data with the mean values calculated from the the first method.
+```{r  6, echo=FALSE}
+str(data_act)
+mean.steps.interval <- mean(data_act$steps,na.rm = TRUE)
+idxNA <- is.na(data_act$steps)
+len.na <- sum(idxNA)
+len.na
+data_act.impute <- data_act
+data_act.impute$steps[idxNA==TRUE] <- mean.steps.interval
+mean.steps.impute.interval <- mean(data_act$steps,na.rm = TRUE)
+mean.steps.interval
+mean.steps.impute.interval
+```
+From the total 17568 observations, there are 2304 data are missing. As the missing data at the interval level were replaced by the mean, the mean after imputing remains the same as the previous one.
+
+### 7. Histogram of the total number of steps taken each day after missing values are imputed
+```{r  7, echo=FALSE}
+sumsteps.impute.daily <- aggregate(steps ~ date, data_act.impute , sum)
+hist(sumsteps.impute.daily$steps, main = "histogram of daily step number after imputing data")
+```
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+### 8. Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+As the following plot shows, the patterns of the weekday activity and the weekend activity are different. Please note the interval is represented by minute in the plot.
+```{r  8, echo=FALSE}
+data_act.weekdays <- subset(data_act, !(weekdays(as.Date(data_act$date)) %in% c('Saturday','Sunday') ) )
+data_act.weekends <- subset(data_act, weekdays(as.Date(data_act$date)) %in% c('Saturday','Sunday')  )
+meansteps.weekdays.interval <- aggregate(steps ~ interval, data_act.weekdays ,mean)
+meansteps.weekends.interval <- aggregate(steps ~ interval, data_act.weekends ,mean)
+
+library(ggplot2)
+library(reshape2)
+meansteps.combine <- data.frame(meansteps.weekdays.interval,meansteps.weekends.interval[2])
+colnames(meansteps.combine )[2:3] <- c("steps.weekdays","steps.weekends")
+meansteps.interval.weekdays.weekends <- melt(data = meansteps.combine, id.vars = "interval")
+
+ggplot(data = meansteps.interval.weekdays.weekends, aes(x = interval, y = value, colour = variable)) + geom_line()
+
+```
